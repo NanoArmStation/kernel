@@ -1,0 +1,125 @@
+--- a/arch/arm64/boot/dts/rockchip/Makefile
++++ b/arch/arm64/boot/dts/rockchip/Makefile
+@@ -72,6 +72,7 @@
+ dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3399-fmx1-pro.dtb
+ dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3399-ficus.dtb
+ dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3399-fine3399.dtb
++dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3399-fine3399-pa.dtb
+ dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3399-firefly-core-3399-jd4.dtb
+ dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3399-firefly.dtb
+ dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3399-gea6319.dtb
+--- /dev/null
++++ b/arch/arm64/boot/dts/rockchip/rk3399-fine3399-pa.dts
+@@ -0,0 +1,112 @@
++// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
++
++/*
++ * 优化了被动散热情况下的热管理，禁用了暂时没用上的功能
++ * 1. CPU 降到最低频
++ * 2. 禁用 WiFi 和蓝牙
++ * 3. 禁用 PCIe
++ */
++
++/dts-v1/;
++
++#include "rk3399-fine3399.dts"
++
++/ {
++	model = "Fine3399 Passive";
++};
++
++/* 启用小核 (A53) 的低频挡位 */
++&cluster0_opp {
++	opp00 { status = "okay"; };
++	opp01 { status = "okay"; };
++	opp02 { status = "okay"; };
++};
++
++/* 启用大核 (A72) 的低频挡位 */
++&cluster1_opp {
++	opp00 { status = "okay"; }; // 408MHz
++	// opp01 { status = "okay"; }; // 600MHz
++	opp02 { status = "okay"; }; // 816MHz
++};
++
++&cpu_thermal {
++	trips {
++		/delete-node/ cpu_warm;
++
++		/* 原本是 active (开风扇)，改为 passive (被动降频) */
++		cpu_hot: cpu_hot {
++			hysteresis = <5000>;   /* 温度回落5度后停止降频 */
++			temperature = <65000>; /* 65摄氏度触发 */
++			type = "passive";
++		};
++
++		/* 添加危急关机温度，防止烧毁 */
++		cpu_crit: cpu_crit {
++			hysteresis = <2000>;
++			temperature = <85000>; /* 85度强制关机 */
++			type = "critical";
++		};
++	};
++
++	cooling-maps {
++		/delete-node/ map3;
++
++		map2 {
++			trip = <&cpu_hot>;
++			cooling-device =
++				<&cpu_l0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
++				<&cpu_b0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
++		};
++	};
++};
++
++/* 省电优化：禁用 AP6181 WiFi 和 Bluetooth */
++&sdio0 {
++	status = "disabled";
++	/delete-property/ pinctrl-names;
++	/delete-property/ pinctrl-0;
++	/delete-property/ mmc-pwrseq;
++	/delete-property/ non-removable;
++	/delete-property/ keep-power-in-suspend;
++};
++
++&sdio_pwrseq {
++	status = "disabled";
++	/delete-property/ pinctrl-names;
++	/delete-property/ pinctrl-0;
++};
++
++&uart0 {
++	/delete-node/ bluetooth;
++};
++
++&gpio0 {
++	wifi_power_off {
++		gpio-hog;
++		gpios = <RK_PB2 GPIO_ACTIVE_HIGH>;
++		output-low;
++		line-name = "wifi-kill-switch";
++	};
++
++	bt_power_off {
++		gpio-hog;
++		gpios = <RK_PB1 GPIO_ACTIVE_HIGH>;
++		output-low;
++		line-name = "bt-kill-switch";
++	};
++};
++
++&leds {
++	user_led2 {
++		gpios = <&gpio2 RK_PD3 GPIO_ACTIVE_HIGH>;
++	};
++};
++
++/* 禁用 PCIe 控制器及 PHY */
++&pcie0 {
++	status = "disabled";
++};
++
++&pcie_phy {
++	status = "disabled";
++};

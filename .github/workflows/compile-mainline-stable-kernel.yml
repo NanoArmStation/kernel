@@ -80,9 +80,10 @@ on:
       kernel_sign:
         description: "Set the kernel custom signature"
         required: false
-        default: "-ophub"
+        default: "-NanoArmStation"
         type: choice
         options:
+          - -NanoArmStation
           - -ophub
           - -happy-new-year
           - -dragon-boat-festival
@@ -125,7 +126,7 @@ jobs:
   build:
     needs: setup
     runs-on: ubuntu-26.04-arm
-    if: ${{ github.event.repository.owner.id == github.event.sender.id }}
+    # if: ${{ github.event.repository.owner.id == github.event.sender.id }}
     permissions:
       contents: write
 
@@ -220,6 +221,8 @@ jobs:
           kernel_toolchain: ${{ inputs.kernel_toolchain }}
           kernel_sign: ${{ inputs.kernel_sign }}
           kernel_config: ${{ inputs.kernel_config }}
+          kernel_patch: kernel-patch/stable
+          auto_patch: true
           ccache_clear: ${{ inputs.ccache_clear }}
           docker_hostpath: /builder
           docker_image: ophub/armbian-${{ inputs.docker_image }}:arm64
